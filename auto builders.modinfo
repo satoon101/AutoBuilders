@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Mod id="9cb1621b-225b-412f-84d0-31196e9fd795" version="1">
+    <Properties>
+        <Name>Auto Builders</Name>
+        <Description>Builders automatically move and create specific improvements.</Description>
+        <Teaser>Auto-Build improvements</Teaser>
+        <Authors>satoon101</Authors>
+        <CompatibleVersions>2.0</CompatibleVersions>
+    </Properties>
+
+    <InGameActions>
+
+        <AddUserInterfaces id="AutoBuilderUI">
+            <Properties>
+                <Context>InGame</Context>
+            </Properties>
+            <File>scripts/UI/AutoBuilderUI.xml</File>
+        </AddUserInterfaces>
+
+        <AddGameplayScripts id="AutoBuilderScript">
+            <File>scripts/Gameplay/AutoBuilder.lua</File>
+        </AddGameplayScripts>
+
+    </InGameActions>
+
+    <Files>
+        <File>scripts/Gameplay/AutoBuilder.lua</File>
+        <File>scripts/UI/AutoBuilderUI.lua</File>
+        <File>scripts/UI/AutoBuilderUI.xml</File>
+    </Files>
+</Mod>

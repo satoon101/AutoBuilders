@@ -5,6 +5,8 @@
 
 print("=== Auto Builders (UI) Loading ===")
 
+include("AutoBuilderUI_Actions")
+
 local BUILDER_INDEX = GameInfo.Units["UNIT_BUILDER"].Index
 CurrentImprovementMovesByUnit = {}
 CurrentImprovementMovesByPlot = {}
@@ -14,42 +16,50 @@ function ProcessAllIdleBuilders(playerID)
         playerID = Game.GetLocalPlayer()
     end
 
-    if playerID == nil then
+    if playerID == nil or Players == nil then
         return
     end
 
     local player = Players[playerID]
-    if player == nil then
+    if player == nil or not player:IsHuman() then
         return
     end
 
-    if not player:IsHuman() then
-        return
+    if CurrentImprovementMovesByUnit[playerID] == nil then
+        CurrentImprovementMovesByUnit[playerID] = {}
     end
 
+    for unitID, _ in pairs(CurrentImprovementMovesByUnit[playerID]) do
+        if UnitManager.GetUnit(playerID, unitID) == nil then
+            local plotID = CurrentImprovementMovesByUnit[playerID][unitID]["plot_id"]
+            CurrentImprovementMovesByUnit[playerID][unitID] = nil
+            CurrentImprovementMovesByPlot[plotID] = nil
+        end
+    end
     local units = player:GetUnits()
     for _, unit in units:Members() do
         if unit:GetType() == BUILDER_INDEX then
             if (
-                CurrentImprovementMovesByUnit[unit:GetID()] ~= nil
+                CurrentImprovementMovesByUnit[playerID][unit:GetID()] ~= nil
                 or unit:IsReadyToMove()
             ) then
-                ProcessIdleBuilder(unit)
+                ProcessIdleBuilder(playerID, unit)
             end
         end
     end
 end
 
-function ProcessIdleBuilder(unit)
+function ProcessIdleBuilder(playerID, unit)
     local unitID = unit:GetID()
-    local currentUnitMove = CurrentImprovementMovesByUnit[unitID]
+    local currentUnitMove = CurrentImprovementMovesByUnit[playerID][unitID]
     if currentUnitMove ~= nil then
-        if IsImprovementStillNeeded(unitID) then
-            PerformUnitOperation(unit)
+        if IsImprovementStillNeeded(playerID, unitID) then
+            PerformUnitOperation(playerID, unit)
             return
         else
-            CurrentImprovementMovesByUnit[unitID] = nil
-            CurrentImprovementMovesByPlot[endPlotID] = nil
+            local plotID = CurrentImprovementMovesByUnit[playerID][unitID]["plot_id"]
+            CurrentImprovementMovesByUnit[playerID][unitID] = nil
+            CurrentImprovementMovesByPlot[plotID] = nil
         end
     end
 
@@ -60,18 +70,19 @@ function ProcessIdleBuilder(unit)
         return
     end
 
-    if FindNextAvailableImprovementPlot(unit, city) then
-        PerformUnitOperation(unit)
+    if FindNextAvailableImprovementPlot(playerID, unit, city) then
+        PerformUnitOperation(playerID, unit)
     end
 end
 
-function FindNextAvailableImprovementPlot(unit, city)
+function FindNextAvailableImprovementPlot(playerID, unit, city)
+    print(playerID, unit:GetID(), city:GetID())
     local unitPlot = Map.GetPlot(unit:GetX(), unit:GetY())
     local unitID = unit:GetID()
-    print("Checking for unit:", unit:GetID())
     local actionType = GetActionTypeForPlot(unit, unitPlot)
+    print(actionType)
     if actionType ~= nil then
-        StoreDataForActionOnPlot(unitPlot, unitID, actionType)
+        StoreDataForActionOnPlot(playerID, unitPlot, unitID, actionType)
         return true
     end
 
@@ -80,7 +91,7 @@ function FindNextAvailableImprovementPlot(unit, city)
         if checkCity ~= nil and checkCity:GetID() == city:GetID() then
             local actionType = GetActionTypeForPlot(unit, plot)
             if actionType ~= nil then
-                StoreDataForActionOnPlot(plot, unitID, actionType)
+                StoreDataForActionOnPlot(playerID, plot, unitID, actionType)
                 return true
             end
         end
@@ -92,35 +103,28 @@ end
 function GetActionTypeForPlot(unit, plot)
     local plotID = plot:GetIndex()
     if CurrentImprovementMovesByPlot[plotID] ~= nil then
-        print("another unit is already assigned to plot")
-        return nil
-    end
-
-    local resourceType = plot:GetResourceType()
-    if resourceType == -1 then
-        print("no resource found for plot")
-        return nil
-    end
-
-    local improvementTypeName = GetImprovementTypeByDomain(resourceType, plot:IsWater())
-    if improvementTypeName == nil then
-        print("no valid improvement type found for plot")
+        print("exit", 1)
         return nil
     end
 
     local actionType = nil
-    local improvementType = GameInfo.Improvements[improvementTypeName].Index
-    local currentImprovementType = plot:GetImprovementType()
-    if plot:IsImprovementPillaged() then
-        actionType = UnitOperationTypes.REPAIR
-    elseif currentImprovementType == -1 then
-        actionType = UnitOperationTypes.BUILD_IMPROVEMENT
-    elseif currentImprovementType ~= improvementType then
-        actionType = UnitOperationTypes.REMOVE_IMPROVEMENT
+
+    local actionFunctions = {
+        CheckPlotForRemovableMarsh,
+        CheckPlotForRepair,
+        CheckPlotForImprovementNeeded,
+        CheckPlotForImprovementRemoval,
+    }
+    for _, actionFunction in ipairs(actionFunctions) do
+        actionType = actionFunction(plot)
+        if actionType ~= nil then
+            print("found action type:", actionType)
+            break
+        end
     end
 
     if actionType == nil then
-        print("no action found for plot")
+        print("exit", 2)
         return nil
     end
 
@@ -129,30 +133,21 @@ function GetActionTypeForPlot(unit, plot)
         [UnitOperationTypes.PARAM_Y] = plot:GetY()
     }
     if not UnitManager.CanStartOperation(unit, UnitOperationTypes.MOVE_TO, nil, params) then
-        print("cannot move to resource:", GameInfo.Resources[resourceType].ResourceType)
+        print("exit", 3)
         return nil
     end
 
+    local actionTypes = {
+        [UnitOperationTypes.BUILD_IMPROVEMENT] = "BUILD_IMPROVEMENT",
+        [UnitOperationTypes.REMOVE_IMPROVEMENT] = "REMOVE_IMPROVEMENT",
+        [UnitOperationTypes.REPAIR] = "REPAIR",
+        [UnitOperationTypes.REMOVE_FEATURE] = "REMOVE_FEATURE",
+    }
+    print("returning action type:", actionTypes[actionType])
     return actionType
 end
 
-function GetImprovementTypeByDomain(resourceType, isWater)
-    local domain = "DOMAIN_LAND"
-    if isWater then
-        domain = "DOMAIN_WATER"
-    end
-    local resource = GameInfo.Resources[resourceType]
-    for _, resourceImprovement in ipairs(resource.ImprovementCollection) do
-        local improvementType = resourceImprovement.ImprovementType
-        local improvement = GameInfo.Improvements[improvementType]
-        if improvement.Domain == domain then
-            return improvementType
-        end
-    end
-    return nil
-end
-
-function StoreDataForActionOnPlot(plot, unitID, actionType)
+function StoreDataForActionOnPlot(playerID, plot, unitID, actionType)
     local plotID = plot:GetIndex()
     local params = {
         [UnitOperationTypes.PARAM_X] = plot:GetX(),
@@ -161,14 +156,11 @@ function StoreDataForActionOnPlot(plot, unitID, actionType)
     local extraParams = {}
     if actionType == UnitOperationTypes.BUILD_IMPROVEMENT then
         local resourceType = plot:GetResourceType()
-        local improvementTypeName = GetImprovementTypeByDomain(
-            resourceType,
-            plot:IsWater()
-        )
-        local improvementHash = GameInfo.Improvements[improvementTypeName].Hash
+        local improvementType = GetImprovementTypeByDomain(plot)
+        local improvementHash = GameInfo.Improvements[improvementType].Hash
         extraParams[UnitOperationTypes.PARAM_IMPROVEMENT_TYPE] = improvementHash
     end
-    CurrentImprovementMovesByUnit[unitID] = {
+    CurrentImprovementMovesByUnit[playerID][unitID] = {
         ["action"] = actionType,
         ["params"] = params,
         ["extra_params"] = extraParams,
@@ -177,20 +169,22 @@ function StoreDataForActionOnPlot(plot, unitID, actionType)
     CurrentImprovementMovesByPlot[plotID] = true
 end
 
-function IsImprovementStillNeeded(unitID)
-    local data = CurrentImprovementMovesByUnit[unitID]
+function IsImprovementStillNeeded(playerID, unitID)
+    local data = CurrentImprovementMovesByUnit[playerID][unitID]
     local actionType = data["action"]
     local plot = Map.GetPlotByIndex(data["plot_id"])
+
+    if actionType == UnitOperationTypes.REMOVE_FEATURE then
+        print("REMOVE MARSH!!", plot:GetFeatureType(), MARSH_INDEX, plot:GetFeatureType() == MARSH_INDEX)
+        return plot:GetFeatureType() == MARSH_INDEX
+    end
+
     if actionType == UnitOperationTypes.REPAIR then
         return plot:IsImprovementPillaged()
     end
 
     local resourceType = plot:GetResourceType()
-    local improvementTypeName = GetImprovementTypeByDomain(
-        resourceType,
-        plot:IsWater()
-    )
-    local improvementType = GameInfo.Improvements[improvementTypeName].Index
+    local improvementType = GetImprovementTypeByDomain(plot)
     local currentImprovementType = plot:GetImprovementType()
     if currentImprovementType == -1 then
         return actionType == UnitOperationTypes.BUILD_IMPROVEMENT
@@ -203,8 +197,8 @@ function IsImprovementStillNeeded(unitID)
     return false
 end
 
-function PerformUnitOperation(unit)
-    local data = CurrentImprovementMovesByUnit[unit:GetID()]
+function PerformUnitOperation(playerID, unit)
+    local data = CurrentImprovementMovesByUnit[playerID][unit:GetID()]
     if data == nil then
         return
     end
@@ -240,3 +234,18 @@ Events.PlayerTurnActivated.Add(ProcessAllIdleBuilders)
 Events.LoadGameViewStateDone.Add(ProcessAllIdleBuilders)
 
 print("=== Auto Builders (UI) Loaded ===")
+
+function test()
+--     local unit = UnitManager.GetUnit(0, 1245184)
+--     local plot = Map.GetPlot(34, 13)
+--     local feature = plot:GetFeatureType()
+--     local MARSH_INDEX = GameInfo.Features["FEATURE_MARSH"].Index
+--     if feature == MARSH_INDEX then
+--         local params = {
+--             [UnitOperationTypes.PARAM_X] = 34,
+--             [UnitOperationTypes.PARAM_Y] = 13,
+-- --             [UnitOperationParameterTypes.OPERATION_TYPE] = UnitOperationTypes.CLEAR_FEATURE,
+--         }
+--         UnitManager.RequestOperation(unit, UnitOperationTypes.REMOVE_FEATURE, params)
+--     end
+end

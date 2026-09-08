@@ -17,15 +17,17 @@
             <File>scripts/UI/AutoBuilderUI.xml</File>
         </AddUserInterfaces>
 
-        <AddGameplayScripts id="AutoBuilderScript">
-            <File>scripts/Gameplay/AutoBuilder.lua</File>
-        </AddGameplayScripts>
+        <ImportFiles id="AutoBuilderHelpers">
+            <File>scripts/UI/AutoBuilderUI_Actions.lua</File>
+            <File>scripts/UI/AutoBuilderUI_Helpers.lua</File>
+        </ImportFiles>
 
     </InGameActions>
 
     <Files>
-        <File>scripts/Gameplay/AutoBuilder.lua</File>
         <File>scripts/UI/AutoBuilderUI.lua</File>
         <File>scripts/UI/AutoBuilderUI.xml</File>
+        <File>scripts/UI/AutoBuilderUI_Actions.lua</File>
+        <File>scripts/UI/AutoBuilderUI_Helpers.lua</File>
     </Files>
 </Mod>

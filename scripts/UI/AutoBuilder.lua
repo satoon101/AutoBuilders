@@ -13,8 +13,8 @@ CurrentImprovementMovesByPlot = {}
 
 function ProcessAllIdleBuilders(playerID)
     -- Clear the lumbermill and farm to start each turn
-    cityPossibleLumberMills = {}
-    cityExistingLumberMills = {}
+    CityPossibleLumberMills = {}
+    CityExistingLumberMills = {}
 
     if playerID == nil then
         playerID = Game.GetLocalPlayer()
@@ -86,6 +86,7 @@ end
 function FindNextAvailableImprovementPlot(playerID, unit, city)
     local unitPlot = Map.GetPlot(unit:GetX(), unit:GetY())
     local unitID = unit:GetID()
+    local actionLevel = nil
     local actionType = GetActionTypeForPlot(unit, unitPlot)
     local unitPlotID = unitPlot:GetIndex()
     if actionType ~= nil then
@@ -97,8 +98,8 @@ function FindNextAvailableImprovementPlot(playerID, unit, city)
     for _, plot in ipairs(Map.GetNeighborPlots(city:GetX(), city:GetY(), 3)) do
         local checkCity = Cities.GetPlotPurchaseCity(plot)
         if checkCity ~= nil and checkCity:GetID() == city:GetID() then
-            local actionLevel, actionType = GetActionTypeForPlot(unit, plot)
-            if actionType ~= nil then
+            actionLevel, actionType = GetActionTypeForPlot(unit, plot)
+            if actionLevel ~= nil and actionType ~= nil then
                 if foundActions[actionLevel] == nil then
                     foundActions[actionLevel] = {}
                 end
@@ -120,19 +121,13 @@ function FindNextAvailableImprovementPlot(playerID, unit, city)
         end
     end
 
-    local actionTypes = {
-        [UnitOperationTypes.BUILD_IMPROVEMENT] = "BUILD_IMPROVEMENT",
-        [UnitOperationTypes.REMOVE_IMPROVEMENT] = "REMOVE_IMPROVEMENT",
-        [UnitOperationTypes.REPAIR] = "REPAIR",
-        [UnitOperationTypes.REMOVE_FEATURE] = "REMOVE_FEATURE",
-    }
     if lowest ~= math.huge then
         local arrayLength = #foundActions[lowest]
         if arrayLength > 0 then
             local index = math.random(1, arrayLength)
             local data = foundActions[lowest][index]
             local plotID = data["plot_id"]
-            local actionType = data["action_type"]
+            actionType = data["action_type"]
             local plot = Map.GetPlotByIndex(plotID)
             local resourceType = plot:GetResourceType()
             if resourceType ~= -1 then
@@ -188,7 +183,7 @@ function GetActionTypeForPlot(unit, plot)
     for level = 1, #actionFunctions do
         local functions = actionFunctions[level]
         for _, actionFunction in ipairs(functions) do
-            currentActionType = actionFunction(plot)
+            local currentActionType = actionFunction(plot)
             if currentActionType ~= nil then
                 actionLevel = level
                 actionType = currentActionType

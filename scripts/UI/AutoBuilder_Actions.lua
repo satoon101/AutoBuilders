@@ -55,12 +55,12 @@ function CheckPlotForLumbermill(plot)
     local cityID = city:GetID()
     local playerID = city:GetOwner()
     FindFarmAndLumberMillPlotsForCity(playerID, cityID)
-    local currentCount = cityExistingLumberMills[cityID]
+    local currentCount = CityExistingLumberMills[cityID]
     if currentCount >= MAX_LUMBER_MILLS_PER_CITY then
         return nil
     end
 
-    local possibleMills = cityPossibleLumberMills[cityID]
+    local possibleMills = CityPossibleLumberMills[cityID]
     if possibleMills == nil then
         return nil
     end

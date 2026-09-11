@@ -4,9 +4,9 @@ MARSH_INDEX = GameInfo.Features["FEATURE_MARSH"].Index
 FLOODPLAINS_INDEX = GameInfo.Features["FEATURE_FLOODPLAINS"].Index
 local LUMBER_MILL_INDEX = GameInfo.Improvements["IMPROVEMENT_LUMBER_MILL"].Index
 FARM_INDEX = GameInfo.Improvements["IMPROVEMENT_FARM"].Index
-cityExistingLumberMills = {}
-cityPossibleLumberMills = {}
-citySafePlot = {}
+CityExistingLumberMills = {}
+CityPossibleLumberMills = {}
+CitySafePlot = {}
 
 function GetImprovementTypeByDomain(plot, isNotResource)
     local resourceType = plot:GetResourceType()
@@ -39,39 +39,39 @@ end
 function FindFarmAndLumberMillPlotsForCity(playerID, cityID)
     local city = CityManager.GetCity(playerID, cityID)
     if (
-        cityPossibleLumberMills[cityID] ~= nil and
-        cityExistingLumberMills[cityID] ~= nil
+        CityPossibleLumberMills[cityID] ~= nil and
+        CityExistingLumberMills[cityID] ~= nil
     ) then
         return
     end
 
-    cityPossibleLumberMills[cityID] = {}
-    cityExistingLumberMills[cityID] = 0
+    CityPossibleLumberMills[cityID] = {}
+    CityExistingLumberMills[cityID] = 0
     for _, plot in ipairs(Map.GetNeighborPlots(city:GetX(), city:GetY(), 3)) do
         if plot:GetResourceType() == -1 then
             local plotID = plot:GetIndex()
             local improvementType = plot:GetImprovementType()
             local featureType = plot:GetFeatureType()
             if improvementType == LUMBER_MILL_INDEX then
-                local count = cityExistingLumberMills[cityID]
-                cityExistingLumberMills[cityID] = count + 1
+                local count = CityExistingLumberMills[cityID]
+                CityExistingLumberMills[cityID] = count + 1
             elseif featureType == FOREST_INDEX or featureType == JUNGLE_INDEX then
                 local isHills = plot:IsHills()
-                if cityPossibleLumberMills[cityID][isHills] == nil then
-                    cityPossibleLumberMills[cityID][isHills] = {}
+                if CityPossibleLumberMills[cityID][isHills] == nil then
+                    CityPossibleLumberMills[cityID][isHills] = {}
                 end
-                table.insert(cityPossibleLumberMills[cityID][isHills], plotID)
+                table.insert(CityPossibleLumberMills[cityID][isHills], plotID)
             end
         end
     end
 end
 
 function GetCitySafePlot(playerID, cityID)
-    if citySafePlot[playerID] == nil then
-        citySafePlot[playerID] = {}
+    if CitySafePlot[playerID] == nil then
+        CitySafePlot[playerID] = {}
     end
 
-    local safePlotID = citySafePlot[playerID][cityID]
+    local safePlotID = CitySafePlot[playerID][cityID]
     if safePlotID ~= nil then
         return safePlotID
     end
@@ -82,7 +82,7 @@ function GetCitySafePlot(playerID, cityID)
     local plot = Map.GetPlot(iX, iY)
     local featureType = plot:GetFeatureType()
     if featureType ~= FLOODPLAINS_INDEX then
-        citySafePlot[playerID][cityID] = plot:GetIndex()
+        CitySafePlot[playerID][cityID] = plot:GetIndex()
     end
 
     local hillsPlotID = nil
@@ -90,7 +90,7 @@ function GetCitySafePlot(playerID, cityID)
     for direction = 0, 5 do
         local adjacentPlot = Map.GetAdjacentPlot(iX, iY, direction)
         if adjacentPlot ~= nil then
-            local featureType = adjacentPlot:GetFeatureType()
+            featureType = adjacentPlot:GetFeatureType()
             if (
                 featureType ~= FLOODPLAINS_INDEX
                 and featureType ~= FOREST_INDEX

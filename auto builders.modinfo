@@ -14,20 +14,27 @@
             <Properties>
                 <Context>InGame</Context>
             </Properties>
-            <File>scripts/UI/AutoBuilder.xml</File>
+            <File>scripts/UI/AutoBuilder_UI.xml</File>
         </AddUserInterfaces>
+
+        <AddGameplayScripts id="AutoBuilderScript">
+            <File>scripts/Gameplay/AutoBuilder.lua</File>
+        </AddGameplayScripts>
 
         <ImportFiles id="AutoBuilderHelpers">
             <File>scripts/UI/AutoBuilder_Actions.lua</File>
-            <File>scripts/UI/AutoBuilder_Helpers.lua</File>
+            <File>scripts/UI/AutoBuilder_Constants.lua</File>
+            <File>scripts/UI/AutoBuilder_Managers.lua</File>
         </ImportFiles>
 
     </InGameActions>
 
     <Files>
-        <File>scripts/UI/AutoBuilder.lua</File>
-        <File>scripts/UI/AutoBuilder.xml</File>
+        <File>scripts/Gameplay/AutoBuilder.lua</File>
+        <File>scripts/UI/AutoBuilder_UI.lua</File>
+        <File>scripts/UI/AutoBuilder_UI.xml</File>
         <File>scripts/UI/AutoBuilder_Actions.lua</File>
-        <File>scripts/UI/AutoBuilder_Helpers.lua</File>
+        <File>scripts/UI/AutoBuilder_Constants.lua</File>
+        <File>scripts/UI/AutoBuilder_Managers.lua</File>
     </Files>
 </Mod>

@@ -12,6 +12,10 @@ CurrentImprovementMovesByUnit = {}
 CurrentImprovementMovesByPlot = {}
 
 function ProcessAllIdleBuilders(playerID)
+    -- Clear the lumbermill and farm to start each turn
+    cityPossibleLumberMills = {}
+    cityExistingLumberMills = {}
+
     if playerID == nil then
         playerID = Game.GetLocalPlayer()
     end
@@ -72,69 +76,48 @@ function ProcessIdleBuilder(playerID, unit)
 
     if FindNextAvailableImprovementPlot(playerID, unit, city) then
         PerformUnitOperation(playerID, unit)
+        return
     end
+
+    local hash = GameInfo.UnitOperations["UNITOPERATION_SKIP_TURN"].Hash
+    UnitManager.RequestOperation(unit, hash, {})
 end
 
 function FindNextAvailableImprovementPlot(playerID, unit, city)
-    print(playerID, unit:GetID(), city:GetID())
     local unitPlot = Map.GetPlot(unit:GetX(), unit:GetY())
     local unitID = unit:GetID()
     local actionType = GetActionTypeForPlot(unit, unitPlot)
-    print(actionType)
+    local unitPlotID = unitPlot:GetIndex()
     if actionType ~= nil then
-        StoreDataForActionOnPlot(playerID, unitPlot, unitID, actionType)
+        StoreDataForActionOnPlot(playerID, unitPlotID, unitID, actionType)
         return true
     end
 
+    local foundActions = {}
     for _, plot in ipairs(Map.GetNeighborPlots(city:GetX(), city:GetY(), 3)) do
         local checkCity = Cities.GetPlotPurchaseCity(plot)
         if checkCity ~= nil and checkCity:GetID() == city:GetID() then
-            local actionType = GetActionTypeForPlot(unit, plot)
+            local actionLevel, actionType = GetActionTypeForPlot(unit, plot)
             if actionType ~= nil then
-                StoreDataForActionOnPlot(playerID, plot, unitID, actionType)
-                return true
+                if foundActions[actionLevel] == nil then
+                    foundActions[actionLevel] = {}
+                end
+                local data = {
+                    ["action_type"] = actionType,
+                    ["plot_id"] = plot:GetIndex()
+                }
+                table.insert(foundActions[actionLevel], data)
             end
         end
     end
 
-    return false
-end
-
-function GetActionTypeForPlot(unit, plot)
-    local plotID = plot:GetIndex()
-    if CurrentImprovementMovesByPlot[plotID] ~= nil then
-        print("exit", 1)
-        return nil
-    end
-
-    local actionType = nil
-
-    local actionFunctions = {
-        CheckPlotForRemovableMarsh,
-        CheckPlotForRepair,
-        CheckPlotForImprovementNeeded,
-        CheckPlotForImprovementRemoval,
-    }
-    for _, actionFunction in ipairs(actionFunctions) do
-        actionType = actionFunction(plot)
-        if actionType ~= nil then
-            print("found action type:", actionType)
-            break
+    local lowest = math.huge
+    for key, _ in pairs(foundActions) do
+        if type(key) == "number" and key > 0 and key % 1 == 0 then
+            if key < lowest then
+                lowest = key
+            end
         end
-    end
-
-    if actionType == nil then
-        print("exit", 2)
-        return nil
-    end
-
-    local params = {
-        [UnitOperationTypes.PARAM_X] = plot:GetX(),
-        [UnitOperationTypes.PARAM_Y] = plot:GetY()
-    }
-    if not UnitManager.CanStartOperation(unit, UnitOperationTypes.MOVE_TO, nil, params) then
-        print("exit", 3)
-        return nil
     end
 
     local actionTypes = {
@@ -143,20 +126,105 @@ function GetActionTypeForPlot(unit, plot)
         [UnitOperationTypes.REPAIR] = "REPAIR",
         [UnitOperationTypes.REMOVE_FEATURE] = "REMOVE_FEATURE",
     }
-    print("returning action type:", actionTypes[actionType])
-    return actionType
+    if lowest ~= math.huge then
+        local arrayLength = #foundActions[lowest]
+        if arrayLength > 0 then
+            local index = math.random(1, arrayLength)
+            local data = foundActions[lowest][index]
+            local plotID = data["plot_id"]
+            local actionType = data["action_type"]
+            local plot = Map.GetPlotByIndex(plotID)
+            local resourceType = plot:GetResourceType()
+            if resourceType ~= -1 then
+                resourceType = GameInfo.Resources[resourceType].ResourceType
+            end
+            StoreDataForActionOnPlot(playerID, plotID, unitID, actionType)
+            return true
+        end
+    end
+
+    local safePlotID = GetCitySafePlot(playerID, city:GetID())
+    local hash = GameInfo.UnitOperations["UNITOPERATION_SKIP_TURN"].Hash
+    if safePlotID ~= nil and safePlotID ~= unitPlotID then
+        StoreDataForActionOnPlot(playerID, safePlotID, unitID, hash)
+        return true
+    end
+
+    return false
 end
 
-function StoreDataForActionOnPlot(playerID, plot, unitID, actionType)
+function GetActionTypeForPlot(unit, plot)
     local plotID = plot:GetIndex()
+    if CurrentImprovementMovesByPlot[plotID] ~= nil then
+        return nil, nil
+    end
+
+    local actionType = nil
+    local actionLevel = nil
+
+    -- Use configuration to store functions by their level
+    --      lowest found level will be used for auto-builder first
+    local actionFunctions = {
+        [1] = {
+            CheckPlotForRemovableMarsh
+        },
+        [2] = {
+            CheckPlotForRepair
+        },
+        [3] = {
+            CheckPlotForImprovementNeeded,
+            CheckPlotForImprovementRemoval
+        },
+        [4] = {
+            CheckPlotForLumbermill
+        }
+    }
+    local actionTypes = {
+        [UnitOperationTypes.BUILD_IMPROVEMENT] = "BUILD_IMPROVEMENT",
+        [UnitOperationTypes.REMOVE_IMPROVEMENT] = "REMOVE_IMPROVEMENT",
+        [UnitOperationTypes.REPAIR] = "REPAIR",
+        [UnitOperationTypes.REMOVE_FEATURE] = "REMOVE_FEATURE",
+    }
+    for level = 1, #actionFunctions do
+        local functions = actionFunctions[level]
+        for _, actionFunction in ipairs(functions) do
+            currentActionType = actionFunction(plot)
+            if currentActionType ~= nil then
+                actionLevel = level
+                actionType = currentActionType
+                print("Found Action:", plot:GetIndex(), actionLevel, actionTypes[actionType])
+                break
+            end
+        end
+        if actionType ~= nil then
+            break
+        end
+    end
+
+    if actionType == nil then
+        return nil, nil
+    end
+
+    local params = {
+        [UnitOperationTypes.PARAM_X] = plot:GetX(),
+        [UnitOperationTypes.PARAM_Y] = plot:GetY()
+    }
+    if not UnitManager.CanStartOperation(unit, UnitOperationTypes.MOVE_TO, nil, params) then
+        return nil, nil
+    end
+
+    return actionLevel, actionType
+end
+
+function StoreDataForActionOnPlot(playerID, plotID, unitID, actionType)
+    local plot = Map.GetPlotByIndex(plotID)
     local params = {
         [UnitOperationTypes.PARAM_X] = plot:GetX(),
         [UnitOperationTypes.PARAM_Y] = plot:GetY()
     }
     local extraParams = {}
     if actionType == UnitOperationTypes.BUILD_IMPROVEMENT then
-        local resourceType = plot:GetResourceType()
-        local improvementType = GetImprovementTypeByDomain(plot)
+        local improvementType = GetImprovementTypeByDomain(plot, true)
         local improvementHash = GameInfo.Improvements[improvementType].Hash
         extraParams[UnitOperationTypes.PARAM_IMPROVEMENT_TYPE] = improvementHash
     end
@@ -175,7 +243,6 @@ function IsImprovementStillNeeded(playerID, unitID)
     local plot = Map.GetPlotByIndex(data["plot_id"])
 
     if actionType == UnitOperationTypes.REMOVE_FEATURE then
-        print("REMOVE MARSH!!", plot:GetFeatureType(), MARSH_INDEX, plot:GetFeatureType() == MARSH_INDEX)
         return plot:GetFeatureType() == MARSH_INDEX
     end
 
@@ -183,8 +250,7 @@ function IsImprovementStillNeeded(playerID, unitID)
         return plot:IsImprovementPillaged()
     end
 
-    local resourceType = plot:GetResourceType()
-    local improvementType = GetImprovementTypeByDomain(plot)
+    local improvementType = GetImprovementTypeByDomain(plot, true)
     local currentImprovementType = plot:GetImprovementType()
     if currentImprovementType == -1 then
         return actionType == UnitOperationTypes.BUILD_IMPROVEMENT
@@ -234,18 +300,3 @@ Events.PlayerTurnActivated.Add(ProcessAllIdleBuilders)
 Events.LoadGameViewStateDone.Add(ProcessAllIdleBuilders)
 
 print("=== Auto Builders (UI) Loaded ===")
-
-function test()
---     local unit = UnitManager.GetUnit(0, 1245184)
---     local plot = Map.GetPlot(34, 13)
---     local feature = plot:GetFeatureType()
---     local MARSH_INDEX = GameInfo.Features["FEATURE_MARSH"].Index
---     if feature == MARSH_INDEX then
---         local params = {
---             [UnitOperationTypes.PARAM_X] = 34,
---             [UnitOperationTypes.PARAM_Y] = 13,
--- --             [UnitOperationParameterTypes.OPERATION_TYPE] = UnitOperationTypes.CLEAR_FEATURE,
---         }
---         UnitManager.RequestOperation(unit, UnitOperationTypes.REMOVE_FEATURE, params)
---     end
-end

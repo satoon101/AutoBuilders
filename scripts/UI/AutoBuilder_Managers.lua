@@ -14,6 +14,7 @@ function CityImprovementManager:new(plotID, playerID, cityID)
         plotID = plotID,
         playerID = playerID,
         cityID = cityID,
+        actionPlotCount = 0,
         plotImprovements = {},
         buildersInCity = {},
         builderImprovementsByUnit = {},
@@ -38,8 +39,7 @@ function CityImprovementManager:RefreshImprovementData()
     -- TODO: allow for builder action map pins to take priority
     local config = PlayerConfigurations[self.playerID]
     local pins = config:GetMapPins()
-    for i = 1, #pins do
-        local pin = pins[i]
+    for _, pin in pairs(pins) do
         local plot = Map.GetPlot(pin:GetHexX(), pin:GetHexY())
         local city = Cities.GetPlotPurchaseCity(plot)
         local name = pin:GetIconName():gsub("^ICON_", "")
@@ -72,11 +72,10 @@ function CityImprovementManager:RefreshImprovementData()
     local player = Players[self.playerID]
     local civics = player:GetCulture()
     local techs = player:GetTechs()
+    local possibleActionPlots = {}
     for i = 1, #plots do
         local plotID = plots[i]
         local plot = Map.GetPlotByIndex(plotID)
-        local x = plot:GetX()
-        local y = plot:GetY()
         -- find if any builders are on the plot
         local units = Units.GetUnitsInPlot(plot)
         if #units > 0 then
@@ -111,57 +110,7 @@ function CityImprovementManager:RefreshImprovementData()
             ) then
                 self.burningPlots[plotID] = true
             elseif plot:GetDistrictType() == -1 then
-                local actionLevel, actionType = self:GetActionTypeForPlot(plot)
-                if actionLevel ~= nil and actionType ~= nil then
-                    local improvementHash = nil
-                    local canProceed = true
-                    if actionType == UnitOperationTypes.BUILD_IMPROVEMENT then
-                        canProceed = true
-                        local improvementType = self:GetImprovementTypeByDomain(plot)
-                        local improvementInfo = GameInfo.Improvements[
-                            improvementType
-                        ]
-                        improvementHash = improvementInfo.Hash
-                        if improvementInfo.PrereqCivic then
-                            local civicInfo = GameInfo.Civics[
-                                improvementInfo.PrereqCivic
-                            ]
-                            if not civics:HasCivic(civicInfo.Index) then
-                                canProceed = false
-                            end
-                        end
-                        if improvementInfo.PrereqTech then
-                            local techInfo = GameInfo.Technologies[
-                                improvementInfo.PrereqTech
-                            ]
-                            if not techs:HasTech(techInfo.Index) then
-                                canProceed = false
-                            end
-                        end
-                    end
-
-                    if canProceed then
-                        local params = {
-                            [UnitOperationTypes.PARAM_X] = x,
-                            [UnitOperationTypes.PARAM_Y] = y,
-                        }
-                        if improvementHash then
-                            params[
-                                UnitOperationTypes.PARAM_IMPROVEMENT_TYPE
-                            ] = improvementHash
-                        end
-
-                        if self.plotImprovements[actionLevel] == nil then
-                            self.plotImprovements[actionLevel] = {}
-                        end
-                        self.plotImprovements[actionLevel][plotID] = {
-                            X = x,
-                            Y = y,
-                            Action = actionType,
-                            Params = params
-                        }
-                    end
-                end
+                table.insert(possibleActionPlots, plotID)
             end
         end
     end
@@ -171,10 +120,69 @@ function CityImprovementManager:RefreshImprovementData()
         local key = array[i]
         if tempLumberMillPlots[key] ~= nil then
             for n = 1, #tempLumberMillPlots[key] do
-                if count < 6 then
+                if count < MAX_LUMBER_MILLS_PER_CITY then
                     local plotID = tempLumberMillPlots[key][n]
                     self.possibleLumberMillPlots[plotID] = true
                 end
+            end
+        end
+    end
+    self.actionPlotCount = 0
+    for i = 1, #possibleActionPlots do
+        local plotID = possibleActionPlots[i]
+        local plot = Map.GetPlotByIndex(plotID)
+        local x = plot:GetX()
+        local y = plot:GetY()
+        local actionLevel, actionType = self:GetActionTypeForPlot(plot)
+        if actionLevel ~= nil and actionType ~= nil then
+            local improvementHash = nil
+            local canProceed = true
+            if actionType == UnitOperationTypes.BUILD_IMPROVEMENT then
+                canProceed = true
+                local improvementType = self:GetImprovementTypeByDomain(plot)
+                local improvementInfo = GameInfo.Improvements[
+                    improvementType
+                ]
+                improvementHash = improvementInfo.Hash
+                if improvementInfo.PrereqCivic then
+                    local civicInfo = GameInfo.Civics[
+                        improvementInfo.PrereqCivic
+                    ]
+                    if not civics:HasCivic(civicInfo.Index) then
+                        canProceed = false
+                    end
+                end
+                if improvementInfo.PrereqTech then
+                    local techInfo = GameInfo.Technologies[
+                        improvementInfo.PrereqTech
+                    ]
+                    if not techs:HasTech(techInfo.Index) then
+                        canProceed = false
+                    end
+                end
+            end
+
+            if canProceed then
+                self.actionPlotCount = self.actionPlotCount + 1
+                local params = {
+                    [UnitOperationTypes.PARAM_X] = x,
+                    [UnitOperationTypes.PARAM_Y] = y,
+                }
+                if improvementHash then
+                    params[
+                        UnitOperationTypes.PARAM_IMPROVEMENT_TYPE
+                    ] = improvementHash
+                end
+
+                if self.plotImprovements[actionLevel] == nil then
+                    self.plotImprovements[actionLevel] = {}
+                end
+                self.plotImprovements[actionLevel][plotID] = {
+                    X = x,
+                    Y = y,
+                    Action = actionType,
+                    Params = params
+                }
             end
         end
     end
@@ -185,30 +193,14 @@ function CityImprovementManager:GetActionTypeForPlot(plot)
     local actionType = nil
     local actionLevel = nil
 
-    -- Use configuration to store functions by their level
-    --      lowest found level will be used for auto-builder first
     local actionFunctions = {
-        [1] = {
-            CheckPlotForRemovableMarsh
-        },
-        [2] = {
-            CheckPlotForRepair
-        },
-        [3] = {
-            CheckPlotForImprovementNeeded,
-            CheckPlotForImprovementRemoval
-        },
-        [4] = {
-            CheckPlotForLumbermill,
-        }
+        CheckPlotForRemovableMarsh,
+        CheckPlotForRepair,
+        CheckPlotForImprovementRemoval,
+        CheckPlotForImprovementNeeded,
+        CheckPlotForLumbermill,
     }
-    local levels = {}
-    for k in pairs(actionFunctions) do
-        table.insert(levels, k)
-    end
-    table.sort(levels)
-    for i = 1, #levels do
-        local level = levels[i]
+    for level = 1, #actionFunctions do
         local functions = actionFunctions[level]
         for n = 1, #functions do
             local actionFunction = functions[n]
@@ -240,6 +232,12 @@ function CityImprovementManager:ProcessNewBuilder(unitID)
 end
 
 function CityImprovementManager:ProcessBuilders()
+    if #self.buildersInCity == 0 then
+        if self.actionPlotCount >= 3 then
+            self:AddWorkerPin()
+        end
+        return
+    end
     for i = 1, #self.buildersInCity do
         local unitID = self.buildersInCity[i]
         local unit = UnitManager.GetUnit(self.playerID, unitID)
@@ -279,6 +277,32 @@ function CityImprovementManager:ProcessBuilders()
     end
 end
 
+function CityImprovementManager:AddWorkerPin()
+    local foundBuilder = false
+    local city = CityManager.GetCity(self.playerID, self.cityID)
+    local queue = city:GetBuildQueue()
+    local length = queue:GetSize()
+    -- Find if a builder is already in the queue
+    for i = 0, length - 1 do
+        local item = queue:GetAt(i)
+        if item.UnitType == BUILDER_INDEX then
+            foundBuilder = true
+        end
+    end
+    -- Add the pin and fire the OnAdd event if builder not found in queue
+    if not foundBuilder then
+        local config = PlayerConfigurations[self.playerID]
+        local plot = Map.GetPlotByIndex(self.plotID)
+        local x = plot:GetX()
+        local y = plot:GetY()
+        local pin = config:GetMapPin(x, y)
+        local pinName = "ICON_MAP_PIN_CHARGES"
+        pin:SetIconName(pinName)
+        Network.BroadcastPlayerInfo()
+        LuaEvents.MapPinPopup_OnAdd(self.playerID, pin:GetID(), pinName, x, y)
+    end
+end
+
 function CityImprovementManager:GetNextTask()
     local levels = {}
     for k in pairs(self.plotImprovements) do
@@ -308,6 +332,13 @@ function CityImprovementManager:IsImprovementStillNeeded(unitID)
     end
 
     local actionType = data["Action"]
+    local types = {
+        [UnitOperationTypes.REMOVE_FEATURE] = "REMOVE_FEATURE",
+        [UnitOperationTypes.REPAIR] = "REPAIR",
+        [UnitOperationTypes.BUILD_IMPROVEMENT] = "BUILD_IMPROVEMENT",
+        [UnitOperationTypes.REMOVE_IMPROVEMENT] = "REMOVE_IMPROVEMENT",
+        [UnitOperationTypes.MOVE_TO] = "MOVE_TO",
+    }
     local plot = Map.GetPlotByIndex(plotID)
 
     if actionType == UnitOperationTypes.REMOVE_FEATURE then
@@ -343,15 +374,14 @@ end
 
 function CityImprovementManager:ProcessCurrentTaskForUnit(unitID)
     local unit = UnitManager.GetUnit(self.playerID, unitID)
-    local plotID = self.builderImprovementsByUnit[unitID]
-    local data = self.builderImprovementsByPlot[plotID]
+    local endPlotID = self.builderImprovementsByUnit[unitID]
+    local data = self.builderImprovementsByPlot[endPlotID]
     if data == nil then
         return
     end
 
     local x = data["X"]
     local y = data["Y"]
-    local endPlotID = Map.GetPlot(x, y):GetIndex()
     local unitPlotID = Map.GetPlot(unit:GetX(), unit:GetY()):GetIndex()
     local isReachable = unitPlotID == endPlotID
     if not isReachable then
@@ -410,7 +440,7 @@ function CityImprovementManager:GetCitySafePlot()
             featureType = adjacentPlot:GetFeatureType()
             if (
                 featureType ~= FLOODPLAINS_INDEX
-                and featureType ~= FOREST_INDEX
+                and featureType ~= WOODS_INDEX
                 and featureType ~= JUNGLE_INDEX
             ) then
                 local adjacentPlotID = adjacentPlot:GetIndex()
@@ -441,7 +471,7 @@ function CityImprovementManager:GetImprovementTypeByDomain(plot)
     local resourceType = plot:GetResourceType()
     if resourceType == -1 then
         local featureType = plot:GetFeatureType()
-        if featureType == FOREST_INDEX or featureType == JUNGLE_INDEX then
+        if featureType == WOODS_INDEX or featureType == JUNGLE_INDEX then
             return LUMBER_MILL_INDEX
         end
         return nil

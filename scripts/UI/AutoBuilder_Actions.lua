@@ -70,16 +70,4 @@ function CheckPlotForLumbermill(plot, obj)
     return nil
 end
 
-function CheckPlotForMapPin(plot, obj)
-    local plotID = plot:GetIndex()
-    if obj.builderMapPinPlots[plotID] ~= nil then
-        local value = obj.builderMapPinPlots[plotID]
-        if GameInfo.UnitOperationTypes[value] ~= nil then
-            return GameInfo.UnitOperationTypes[value]
-        elseif GameInfo.Improvements[value] ~= nil then
-            return UnitOperationTypes.BUILD_IMPROVEMENT
-        end
-    end
-end
-
 print("=== Auto Builders (Actions) Loaded ===")

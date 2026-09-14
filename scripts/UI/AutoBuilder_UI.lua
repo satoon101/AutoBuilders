@@ -7,6 +7,10 @@ print("=== Auto Builders (UI) Loading ===")
 
 include("AutoBuilder_Managers")
 
+function LoadProcessAllIdleBuilders()
+    ProcessAllIdleBuilders()
+end
+
 function ProcessAllIdleBuilders(playerID)
     if playerID == nil then
         playerID = Game.GetLocalPlayer()
@@ -39,17 +43,14 @@ function ProcessNewBuilder(playerID, unitID, iX, iY)
     if city ~= nil then
         local cityID = city:GetID()
         local obj = CityImprovementManager:new(plotID, playerID, cityID)
-        if not obj.finishedInitialization then
-            obj:RefreshImprovementData()
-            obj:ProcessBuilders()
-        else
+        if obj.finishedInitialization then
             obj:ProcessNewBuilder(unitID)
         end
     end
 end
 
+Events.LoadGameViewStateDone.Add(LoadProcessAllIdleBuilders)
 Events.PlayerTurnActivated.Add(ProcessAllIdleBuilders)
-Events.LoadGameViewStateDone.Add(ProcessAllIdleBuilders)
 Events.UnitAddedToMap.Add(ProcessNewBuilder)
 
 print("=== Auto Builders (UI) Loaded ===")

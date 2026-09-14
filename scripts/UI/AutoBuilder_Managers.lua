@@ -193,15 +193,12 @@ function CityImprovementManager:GetActionTypeForPlot(plot)
     local actionLevel = nil
 
     for level = 1, #ActionFunctions do
-        local functions = ActionFunctions[level]
-        for n = 1, #functions do
-            local actionFunction = functions[n]
-            local currentActionType = actionFunction(plot, self)
-            if currentActionType ~= nil then
-                actionLevel = level
-                actionType = currentActionType
-                break
-            end
+        local actionFunction = ActionFunctions[level]
+        local currentActionType = actionFunction(plot, self)
+        if currentActionType ~= nil then
+            actionLevel = level
+            actionType = currentActionType
+            break
         end
         if actionType ~= nil then
             break
@@ -324,13 +321,6 @@ function CityImprovementManager:IsImprovementStillNeeded(unitID)
     end
 
     local actionType = data["Action"]
-    local types = {
-        [UnitOperationTypes.REMOVE_FEATURE] = "REMOVE_FEATURE",
-        [UnitOperationTypes.REPAIR] = "REPAIR",
-        [UnitOperationTypes.BUILD_IMPROVEMENT] = "BUILD_IMPROVEMENT",
-        [UnitOperationTypes.REMOVE_IMPROVEMENT] = "REMOVE_IMPROVEMENT",
-        [UnitOperationTypes.MOVE_TO] = "MOVE_TO",
-    }
     local plot = Map.GetPlotByIndex(plotID)
 
     if actionType == UnitOperationTypes.REMOVE_FEATURE then
@@ -460,7 +450,17 @@ function CityImprovementManager:GetImprovementTypeByDomain(plot)
             return info.Index
         end
     end
+
     local resourceType = plot:GetResourceType()
+    if resourceType ~= -1 then
+        local info = GameInfo.Resources[resourceType]
+        local player = Players[self.playerID]
+        local resources = player:GetResources()
+        -- if the resource is no visible, yet, don't allow improvement
+        if not resources:IsResourceVisible(info.Hash) then
+            resourceType = -1
+        end
+    end
     if resourceType == -1 then
         local featureType = plot:GetFeatureType()
         if featureType == WOODS_INDEX or featureType == JUNGLE_INDEX then

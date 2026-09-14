@@ -1,5 +1,3 @@
-include("AutoBuilder_Constants")
-
 function CheckPlotForRemovableMarsh(plot)
     local featureType = plot:GetFeatureType()
     if featureType == MARSH_INDEX then

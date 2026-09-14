@@ -1,5 +1,4 @@
-
-include("AutoBuilder_Actions")
+include("AutoBuilder_Constants")
 
 CityImprovementManager = {}
 CityImprovementManager.__index = CityImprovementManager
@@ -193,15 +192,8 @@ function CityImprovementManager:GetActionTypeForPlot(plot)
     local actionType = nil
     local actionLevel = nil
 
-    local actionFunctions = {
-        CheckPlotForRemovableMarsh,
-        CheckPlotForRepair,
-        CheckPlotForImprovementRemoval,
-        CheckPlotForImprovementNeeded,
-        CheckPlotForLumbermill,
-    }
-    for level = 1, #actionFunctions do
-        local functions = actionFunctions[level]
+    for level = 1, #ActionFunctions do
+        local functions = ActionFunctions[level]
         for n = 1, #functions do
             local actionFunction = functions[n]
             local currentActionType = actionFunction(plot, self)

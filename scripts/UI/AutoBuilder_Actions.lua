@@ -49,6 +49,10 @@ function CheckPlotForImprovementRemoval(plot, obj)
     end
 
     local currentImprovementType = plot:GetImprovementType()
+    if currentImprovementType == -1 then
+        return nil
+    end
+
     if currentImprovementType ~= improvementType then
         return UnitOperationTypes.REMOVE_IMPROVEMENT
     end

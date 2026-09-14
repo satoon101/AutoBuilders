@@ -23,6 +23,7 @@
 
         <ImportFiles id="AutoBuilderHelpers">
             <File>scripts/UI/AutoBuilder_Actions.lua</File>
+            <File>scripts/UI/AutoBuilder_Config.lua</File>
             <File>scripts/UI/AutoBuilder_Constants.lua</File>
             <File>scripts/UI/AutoBuilder_Managers.lua</File>
         </ImportFiles>
@@ -34,6 +35,7 @@
         <File>scripts/UI/AutoBuilder_UI.lua</File>
         <File>scripts/UI/AutoBuilder_UI.xml</File>
         <File>scripts/UI/AutoBuilder_Actions.lua</File>
+        <File>scripts/UI/AutoBuilder_Config.lua</File>
         <File>scripts/UI/AutoBuilder_Constants.lua</File>
         <File>scripts/UI/AutoBuilder_Managers.lua</File>
     </Files>

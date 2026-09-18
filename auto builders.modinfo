@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Mod id="9cb1621b-225b-412f-84d0-31196e9fd795" version="1">
+
     <Properties>
         <Name>Auto Builders</Name>
         <Description>Builders automatically move and create specific improvements.</Description>
@@ -39,4 +40,5 @@
         <File>scripts/UI/AutoBuilder_Constants.lua</File>
         <File>scripts/UI/AutoBuilder_Managers.lua</File>
     </Files>
+
 </Mod>

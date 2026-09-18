@@ -7,7 +7,10 @@ print("=== Auto Builders (UI) Loading ===")
 
 include("AutoBuilder_Managers")
 
+FinishedInitialization = false
+
 function LoadProcessAllIdleBuilders()
+    FinishedInitialization = true
     ProcessAllIdleBuilders()
 end
 
@@ -31,7 +34,14 @@ function ProcessAllIdleBuilders(playerID)
     end
 end
 
+Events.LoadGameViewStateDone.Add(LoadProcessAllIdleBuilders)
+Events.PlayerTurnActivated.Add(ProcessAllIdleBuilders)
+
 function ProcessNewBuilder(playerID, unitID, iX, iY)
+    if not FinishedInitialization then
+        return
+    end
+
     local unit = UnitManager.GetUnit(playerID, unitID)
     if unit:GetType() ~= BUILDER_INDEX then
         return
@@ -49,8 +59,6 @@ function ProcessNewBuilder(playerID, unitID, iX, iY)
     end
 end
 
-Events.LoadGameViewStateDone.Add(LoadProcessAllIdleBuilders)
-Events.PlayerTurnActivated.Add(ProcessAllIdleBuilders)
 Events.UnitAddedToMap.Add(ProcessNewBuilder)
 
 print("=== Auto Builders (UI) Loaded ===")

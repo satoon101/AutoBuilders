@@ -285,10 +285,10 @@ function CityImprovementManager:AddWorkerPin()
         local x = plot:GetX()
         local y = plot:GetY()
         local pin = config:GetMapPin(x, y)
-        local pinName = "ICON_MAP_PIN_CHARGES"
-        pin:SetIconName(pinName)
+        local iconName = "ICON_UNIT_BUILDER"
+        pin:SetIconName(iconName)
         Network.BroadcastPlayerInfo()
-        LuaEvents.MapPinPopup_OnAdd(self.playerID, pin:GetID(), pinName, x, y)
+        LuaEvents.MapPinPopup_OnAdd(self.playerID, pin:GetID(), iconName, x, y)
     end
 end
 
@@ -453,11 +453,10 @@ function CityImprovementManager:GetImprovementTypeByDomain(plot)
 
     local resourceType = plot:GetResourceType()
     if resourceType ~= -1 then
-        local info = GameInfo.Resources[resourceType]
         local player = Players[self.playerID]
         local resources = player:GetResources()
-        -- if the resource is no visible, yet, don't allow improvement
-        if not resources:IsResourceVisible(info.Hash) then
+        -- if the resource is not visible, yet, don't allow improvement
+        if not resources:IsResourceVisible(resourceType) then
             resourceType = -1
         end
     end

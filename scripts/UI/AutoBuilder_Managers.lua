@@ -221,7 +221,6 @@ function CityImprovementManager:ProcessNewBuilder(unitID)
 end
 
 function CityImprovementManager:ProcessBuilders()
-    local city = CityManager.GetCity(self.playerID, self.cityID)
     if #self.buildersInCity == 0 then
         if self.actionPlotCount >= 3 then
             self:AddWorkerPin()

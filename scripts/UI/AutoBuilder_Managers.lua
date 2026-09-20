@@ -28,7 +28,7 @@ function CityImprovementManager:new(plotID, playerID, cityID)
     }
 
     setmetatable(instance, self)
-    self.safePlot = instance:GetCitySafePlot()
+    instance:GetCitySafePlot()
     CityImprovementManager.Registry[plotID] = instance
     return instance
 end
@@ -221,6 +221,7 @@ function CityImprovementManager:ProcessNewBuilder(unitID)
 end
 
 function CityImprovementManager:ProcessBuilders()
+    local city = CityManager.GetCity(self.playerID, self.cityID)
     if #self.buildersInCity == 0 then
         if self.actionPlotCount >= 3 then
             self:AddWorkerPin()
@@ -411,7 +412,8 @@ function CityImprovementManager:GetCitySafePlot()
     local plot = Map.GetPlot(iX, iY)
     local featureType = plot:GetFeatureType()
     if featureType ~= FLOODPLAINS_INDEX then
-        return plot:GetIndex()
+        self.safePlot = plot:GetIndex()
+        return
     end
 
     local hillsPlotID = nil
@@ -435,10 +437,11 @@ function CityImprovementManager:GetCitySafePlot()
         end
     end
     if hillsPlotID ~= nil then
-        return hillsPlotID
+        self.safePlot = hillsPlotID
+        return
     end
 
-    return nonHillsPlotID
+    self.safePlot = nonHillsPlotID
 end
 
 function CityImprovementManager:GetImprovementTypeByDomain(plot)
@@ -471,7 +474,7 @@ function CityImprovementManager:GetImprovementTypeByDomain(plot)
     local isWater = plot:IsWater()
     local domain = "DOMAIN_LAND"
     if isWater then
-        domain = "DOMAIN_WATER"
+        domain = "DOMAIN_SEA"
     end
     local resource = GameInfo.Resources[resourceType]
     for _, resourceImprovement in ipairs(resource.ImprovementCollection) do
@@ -482,27 +485,6 @@ function CityImprovementManager:GetImprovementTypeByDomain(plot)
         end
     end
     return nil
-end
-
--------------------------------------------------------------------------------
--- CITY IMPROVEMENT MANAGER FUNCTIONS
--------------------------------------------------------------------------------
-function CityImprovementManager.RefreshAllCityData(playerID)
-    local player = Players[playerID]
-    if player ~= nil and player:IsHuman() then
-        local cities = player:GetCities()
-        for _, city in cities:Members() do
-            local x = city:GetX()
-            local y = city:GetY()
-            local plot = Map.GetPlot(x, y)
-            local plotID = plot:GetIndex()
-            local cityID = city:GetID()
-            local instance = CityImprovementManager:new(
-                plotID, playerID, cityID
-            )
-            instance:RefreshImprovementData()
-        end
-    end
 end
 
 print("=== Auto Builders (Managers) Loaded ===")

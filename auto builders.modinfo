@@ -15,11 +15,11 @@
             <Properties>
                 <Context>InGame</Context>
             </Properties>
-            <File>scripts/UI/AutoBuilder_UI.xml</File>
+            <File>scripts/UI/AutoBuilder.xml</File>
         </AddUserInterfaces>
 
         <AddGameplayScripts id="AutoBuilderScript">
-            <File>scripts/Gameplay/AutoBuilder.lua</File>
+            <File>scripts/Gameplay/AutoBuilder_Gameplay_Functions.lua</File>
         </AddGameplayScripts>
 
         <ImportFiles id="AutoBuilderHelpers">
@@ -32,9 +32,9 @@
     </InGameActions>
 
     <Files>
-        <File>scripts/Gameplay/AutoBuilder.lua</File>
-        <File>scripts/UI/AutoBuilder_UI.lua</File>
-        <File>scripts/UI/AutoBuilder_UI.xml</File>
+        <File>scripts/Gameplay/AutoBuilder_Gameplay_Functions.lua</File>
+        <File>scripts/UI/AutoBuilder.lua</File>
+        <File>scripts/UI/AutoBuilder.xml</File>
         <File>scripts/UI/AutoBuilder_Actions.lua</File>
         <File>scripts/UI/AutoBuilder_Config.lua</File>
         <File>scripts/UI/AutoBuilder_Constants.lua</File>

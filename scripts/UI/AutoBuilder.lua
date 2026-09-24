@@ -7,23 +7,20 @@ print("=== Auto Builders (UI) Loading ===")
 
 include("AutoBuilder_Managers")
 
-FinishedInitialization = false
+MovementEnabled = false
 
 function LoadProcessAllIdleBuilders()
-    FinishedInitialization = true
-    ProcessAllIdleBuilders()
+    local playerID = Game.GetLocalPlayer()
+    ProcessAllIdleBuilders(playerID)
 end
 
 function ProcessAllIdleBuilders(playerID)
-    if playerID == nil then
-        playerID = Game.GetLocalPlayer()
-    end
-
     local player = Players[playerID]
     if player == nil or not player:IsHuman() then
         return
     end
 
+    MovementEnabled = true
     local cities = player:GetCities()
     for _, city in cities:Members() do
         local cityID = city:GetID()
@@ -37,13 +34,24 @@ end
 Events.LoadGameViewStateDone.Add(LoadProcessAllIdleBuilders)
 Events.PlayerTurnActivated.Add(ProcessAllIdleBuilders)
 
+function DisableMovement()
+    MovementEnabled = false
+end
+
+Events.PlayerTurnDeactivated.Add(DisableMovement)
+
 function ProcessNewBuilder(playerID, unitID, iX, iY)
-    if not FinishedInitialization then
+    if not MovementEnabled then
+        return
+    end
+
+    local player = Players[playerID]
+    if player == nil or not player:IsHuman() then
         return
     end
 
     local unit = UnitManager.GetUnit(playerID, unitID)
-    if unit:GetType() ~= BUILDER_INDEX then
+    if unit == nil or unit:GetType() ~= BUILDER_INDEX then
         return
     end
 

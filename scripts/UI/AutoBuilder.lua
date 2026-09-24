@@ -9,12 +9,12 @@ include("AutoBuilder_Managers")
 
 MovementEnabled = false
 
-function LoadProcessAllIdleBuilders()
+function LoadProcessAllBuilders()
     local playerID = Game.GetLocalPlayer()
-    ProcessAllIdleBuilders(playerID)
+    ProcessAllBuilders(playerID)
 end
 
-function ProcessAllIdleBuilders(playerID)
+function ProcessAllBuilders(playerID)
     local player = Players[playerID]
     if player == nil or not player:IsHuman() then
         return
@@ -31,8 +31,8 @@ function ProcessAllIdleBuilders(playerID)
     end
 end
 
-Events.LoadGameViewStateDone.Add(LoadProcessAllIdleBuilders)
-Events.PlayerTurnActivated.Add(ProcessAllIdleBuilders)
+Events.LoadGameViewStateDone.Add(LoadProcessAllBuilders)
+Events.PlayerTurnActivated.Add(ProcessAllBuilders)
 
 function DisableMovement()
     MovementEnabled = false
